@@ -48,18 +48,18 @@ checked just now
 
 ### Option 1 — Installer (recommended)
 
-1. Download **`GitPulse Setup 1.0.0.exe`** from the [Releases](https://github.com/XxDoomsdayxX/Github-Desktop-Widget/releases) page
+1. Download **`GitPulse Setup 1.0.0.exe`** from the [Releases](https://github.com/XxDoomsdayxX/GitPulse/releases) page
 2. Double-click the installer — no admin password needed
 3. GitPulse installs silently and launches automatically
 4. A shortcut is added to your Desktop and Start Menu
 
-> Installs to `%LOCALAPPDATA%\Programs\github-desktop-widget\` — no system-wide changes.
+> Installs to `%LOCALAPPDATA%\Programs\gitpulse\` — no system-wide changes.
 
 ### Option 2 — Run from source
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/XxDoomsdayxX/Github-Desktop-Widget.git
+git clone https://github.com/XxDoomsdayxX/GitPulse.git
 cd Github-Desktop-Widget
 
 # 2. Install dependencies

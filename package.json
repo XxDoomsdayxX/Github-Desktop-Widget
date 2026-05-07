@@ -1,5 +1,5 @@
 {
-  "name": "github-desktop-widget",
+  "name": "gitpulse",
   "productName": "GitPulse",
   "version": "1.0.0",
   "description": "Floating desktop widget for monitoring GitHub repository sync status.",
