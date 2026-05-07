@@ -9,25 +9,25 @@
 <body>
 <div class="widget">
 
-  <!-- Drag handle -->
-  <div class="handle">
-    <div class="handle-left">
-      <span class="app-dot" aria-hidden="true"></span>
-      <span class="app-name">GitPulse</span>
-      <div class="compact-info" id="compactInfo" aria-live="polite"></div>
+  <!-- Always-visible compact bar -->
+  <div class="bar" id="bar">
+    <div class="bar-left" id="barLeft">
+      <div class="status-dot idle" id="barDot" role="img" aria-label="Idle"></div>
+      <span class="bar-label" id="barLabel">GitPulse</span>
     </div>
-    <div class="handle-right">
-      <button class="icon-btn expand-btn" id="expandBtn" aria-label="Expand widget" title="Expand" hidden>
-        <svg width="10" height="7" viewBox="0 0 10 7" fill="none" aria-hidden="true">
-          <path d="M9 6L5 1L1 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <div class="bar-right">
+      <button class="icon-btn chevron-btn" id="chevronBtn" aria-label="Toggle details" aria-hidden="true">
+        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true">
+          <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
-      <button class="icon-btn" id="settingsBtn" aria-label="Settings" title="Settings">
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-          <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.892 3.433-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.892-1.64-.901-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.474l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z"/>
-          <path d="M8 5.754a2.246 2.246 0 1 0 0 4.492 2.246 2.246 0 0 0 0-4.492z"/>
+      <span class="drag-grip" aria-hidden="true">
+        <svg width="6" height="10" viewBox="0 0 6 10" fill="currentColor" aria-hidden="true">
+          <circle cx="1.5" cy="1.5" r="1"/><circle cx="4.5" cy="1.5" r="1"/>
+          <circle cx="1.5" cy="5" r="1"/><circle cx="4.5" cy="5" r="1"/>
+          <circle cx="1.5" cy="8.5" r="1"/><circle cx="4.5" cy="8.5" r="1"/>
         </svg>
-      </button>
+      </span>
       <button class="icon-btn" id="closeBtn" aria-label="Hide to tray" title="Hide to tray">
         <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden="true">
           <path d="M1 1L8 8M8 1L1 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -36,43 +36,56 @@
     </div>
   </div>
 
-  <!-- Repo selector row -->
-  <div class="selector-row" id="selectorRow">
-    <div class="dropdown" id="dropdown">
-      <button class="dropdown-trigger" id="dropdownTrigger"
-        aria-haspopup="listbox" aria-expanded="false" aria-label="Select repository">
-        <span id="dropdownLabel" class="dropdown-label">Select a repository</span>
-        <svg class="chevron" width="10" height="7" viewBox="0 0 10 7" fill="none" aria-hidden="true">
-          <path d="M1 1L5 6L9 1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Expandable detail panel -->
+  <div class="panel" id="panel" hidden>
+
+    <!-- Repo selector -->
+    <div class="panel-section">
+      <div class="dropdown" id="dropdown">
+        <button class="dropdown-trigger" id="dropdownTrigger"
+          aria-haspopup="listbox" aria-expanded="false" aria-label="Select repository">
+          <span class="dropdown-label" id="dropdownLabel">Select a repository</span>
+          <svg class="chevron" width="9" height="6" viewBox="0 0 9 6" fill="none" aria-hidden="true">
+            <path d="M1 1L4.5 5L8 1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="dropdown-menu" id="dropdownMenu" role="listbox" aria-label="Repositories" hidden></div>
+      </div>
+    </div>
+
+    <div class="panel-divider"></div>
+
+    <!-- Commit detail -->
+    <div class="panel-commit" id="panelCommit" role="status" aria-live="polite">
+      <span class="commit-prompt">Select a repository above</span>
+    </div>
+
+    <div class="panel-divider"></div>
+
+    <!-- Actions -->
+    <div class="panel-actions">
+      <button class="btn-pull" id="pullBtn" disabled>Pull</button>
+      <button class="icon-btn action-icon" id="refreshBtn" aria-label="Refresh" title="Refresh">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+          <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
         </svg>
       </button>
-      <div class="dropdown-menu" id="dropdownMenu" role="listbox" aria-label="Repositories" hidden></div>
+      <button class="icon-btn action-icon" id="settingsBtn" aria-label="Settings" title="Settings">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.892 3.433-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.892-1.64-.901-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.474l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z"/>
+          <path d="M8 5.754a2.246 2.246 0 1 0 0 4.492 2.246 2.246 0 0 0 0-4.492z"/>
+        </svg>
+      </button>
     </div>
-    <button class="icon-btn refresh-btn" id="refreshBtn" aria-label="Refresh status" title="Refresh">
-      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-        <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
-        <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
-      </svg>
-    </button>
-  </div>
 
-  <!-- Divider -->
-  <div class="divider" aria-hidden="true"></div>
+    <!-- Settings inline panel -->
+    <div class="settings-panel" id="settingsPanel" hidden aria-hidden="true">
+      <div class="panel-divider"></div>
+      <div class="settings-inner">
 
-  <!-- Status -->
-  <div class="status-area" id="statusArea" role="status" aria-live="polite">
-    <div id="statusContent" class="state-idle">
-      <span class="idle-text">Select a repository to begin</span>
-    </div>
-  </div>
-
-  <!-- Settings panel (hidden by default) -->
-  <div class="settings-panel" id="settingsPanel" hidden aria-hidden="true">
-    <div class="settings-inner">
-
-      <div class="settings-group">
-        <label class="settings-label" for="tokenInput">GitHub Personal Access Token</label>
-        <div class="token-row">
+        <div class="settings-group">
+          <label class="settings-label" for="tokenInput">GitHub Token</label>
           <input
             type="password"
             id="tokenInput"
@@ -81,31 +94,32 @@
             autocomplete="off"
             spellcheck="false"
           >
-          <button class="btn-primary" id="connectBtn">Connect</button>
+          <div class="settings-row-actions">
+            <button class="btn-connect" id="connectBtn">Connect</button>
+            <button class="btn-disconnect" id="disconnectBtn" hidden>Disconnect</button>
+          </div>
+          <p class="settings-hint">
+            <button class="hint-link" id="tokenDocsBtn">Create token</button>
+            &nbsp;&middot;&nbsp;<code>repo</code> scope
+          </p>
         </div>
-        <p class="settings-hint">
-          <button class="hint-link" id="tokenDocsBtn">How to create a token</button>
-          &nbsp;&middot;&nbsp; Needs <code>repo</code> scope
-        </p>
-      </div>
 
-      <div class="settings-group">
-        <label class="settings-label" for="refreshSelect">Auto-refresh interval</label>
-        <select id="refreshSelect" class="select-input">
-          <option value="1">Every minute</option>
-          <option value="5" selected>Every 5 minutes</option>
-          <option value="10">Every 10 minutes</option>
-          <option value="30">Every 30 minutes</option>
-        </select>
-      </div>
+        <div class="settings-group">
+          <label class="settings-label" for="refreshSelect">Auto-refresh</label>
+          <select id="refreshSelect" class="select-input">
+            <option value="1">Every minute</option>
+            <option value="5" selected>Every 5 min</option>
+            <option value="10">Every 10 min</option>
+            <option value="30">Every 30 min</option>
+          </select>
+        </div>
 
-      <div class="settings-footer">
-        <button class="btn-danger" id="disconnectBtn" hidden>Disconnect account</button>
       </div>
-
     </div>
-  </div>
 
+    <div class="panel-end"></div>
+
+  </div>
 </div>
 <script src="app.js"></script>
 </body>

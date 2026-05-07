@@ -7,9 +7,10 @@ const fs    = require('fs')
 const https = require('https')
 const { exec } = require('child_process')
 
-const W           = 300
-const H_COLLAPSED = 140
-const H_SETTINGS  = 290
+const W              = 200
+const H_BAR          = 42
+const H_EXPANDED     = 244
+const H_WITH_SETTINGS = 390
 
 let win          = null
 let tray         = null
@@ -114,8 +115,8 @@ async function getLatestCommit(fullName, branch, token) {
 
 // ─── Tray ──────────────────────────────────────────────────────────────────
 function makeTrayIcon(status) {
-  const fill = status === 'current' ? '#22c55e' : status === 'behind' ? '#ef4444' : '#64748b'
-  const svg  = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><circle cx="8" cy="8" r="5.5" fill="${fill}"/></svg>`
+  const fill = status === 'current' ? '#22c55e' : status === 'behind' ? '#ef4444' : '#94a3b8'
+  const svg  = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><rect width="16" height="16" rx="3" fill="#0f172a"/><circle cx="5" cy="4.5" r="1.5" fill="${fill}"/><circle cx="5" cy="11.5" r="1.5" fill="${fill}"/><circle cx="11" cy="4.5" r="1.5" fill="${fill}"/><line x1="5" y1="6" x2="5" y2="10" stroke="${fill}" stroke-width="1.2" stroke-linecap="round"/><path d="M5 9.5 C6 6.5 8.5 5 11 5" stroke="${fill}" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>`
   return nativeImage.createFromDataURL('data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64'))
 }
 
@@ -130,10 +131,10 @@ function createWindow() {
   const [x, y] = s.position || [sw - W - 20, 20]
 
   win = new BrowserWindow({
-    width: W, height: H_COLLAPSED, x, y,
-    frame: false, alwaysOnTop: true, resizable: true,
-    minWidth: 240, minHeight: 100,
+    width: W, height: H_BAR, x, y,
+    frame: false, alwaysOnTop: true, resizable: false,
     skipTaskbar: true, transparent: true, hasShadow: true,
+    backgroundColor: '#00000000',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true, nodeIntegration: false, sandbox: false
@@ -141,6 +142,7 @@ function createWindow() {
   })
 
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'))
+
   win.on('moved', () => {
     const [wx, wy] = win.getPosition()
     const cfg = readSettings(); cfg.position = [wx, wy]; writeSettings(cfg)

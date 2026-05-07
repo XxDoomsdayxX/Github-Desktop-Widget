@@ -2,36 +2,47 @@
 
 const w = window.widget
 
+// ─── Heights ───────────────────────────────────────────────────────────────
+const H_BAR           = 42
+const H_EXPANDED      = 244
+const H_WITH_SETTINGS = 390
+const MSG_EXTRA       = 60
+
 // ─── State ─────────────────────────────────────────────────────────────────
 const state = {
   hasToken:     false,
   repos:        [],
-  selectedRepo: null,   // { name, full_name, default_branch }
-  status:       null,   // { commit, behind } | { error } | null
+  selectedRepo: null,
+  status:       null,
   loading:      false,
+  panelOpen:    false,
   settingsOpen: false,
   dropdownOpen: false,
-  lastChecked:  null
+  lastChecked:  null,
+  msgExpanded:  false
 }
 
 // ─── DOM ───────────────────────────────────────────────────────────────────
 const el = (id) => document.getElementById(id)
 
-const widget        = document.querySelector('.widget')
-const settingsBtn   = el('settingsBtn')
+const barLeft       = el('barLeft')
+const barDot        = el('barDot')
+const barLabel      = el('barLabel')
+const chevronBtn    = el('chevronBtn')
 const closeBtn      = el('closeBtn')
-const refreshBtn    = el('refreshBtn')
-const expandBtn     = el('expandBtn')
-const compactInfo   = el('compactInfo')
+const panel         = el('panel')
 const dropdownTrig  = el('dropdownTrigger')
 const dropdownMenu  = el('dropdownMenu')
 const dropdownLabel = el('dropdownLabel')
-const statusContent = el('statusContent')
+const panelCommit   = el('panelCommit')
+const pullBtn       = el('pullBtn')
+const refreshBtn    = el('refreshBtn')
+const settingsBtn   = el('settingsBtn')
 const settingsPanel = el('settingsPanel')
 const tokenInput    = el('tokenInput')
 const connectBtn    = el('connectBtn')
-const refreshSelect = el('refreshSelect')
 const disconnectBtn = el('disconnectBtn')
+const refreshSelect = el('refreshSelect')
 const tokenDocsBtn  = el('tokenDocsBtn')
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -45,27 +56,31 @@ function esc(str) {
 
 function reltime(iso) {
   if (!iso) return ''
-  const secs = Math.floor((Date.now() - new Date(iso)) / 1000)
-  if (secs < 60)    return 'just now'
-  if (secs < 3600)  return `${Math.floor(secs / 60)}m ago`
-  if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`
-  return `${Math.floor(secs / 86400)}d ago`
+  const s = Math.floor((Date.now() - new Date(iso)) / 1000)
+  if (s < 60)    return 'just now'
+  if (s < 3600)  return `${Math.floor(s / 60)}m ago`
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+  return `${Math.floor(s / 86400)}d ago`
 }
 
-// ─── Render status ─────────────────────────────────────────────────────────
-function renderStatus() {
+// ─── Bar updates ───────────────────────────────────────────────────────────
+function updateBar() {
   if (!state.selectedRepo) {
-    statusContent.className = 'state-idle'
-    statusContent.innerHTML = '<span class="idle-text">Select a repository to begin</span>'
+    barDot.className   = 'status-dot idle'
+    barDot.setAttribute('aria-label', 'Idle')
+    barLabel.textContent = 'GitPulse'
+    barLabel.classList.remove('has-repo')
+    pullBtn.disabled = true
+    pullBtn.classList.remove('is-current')
     return
   }
 
+  barLabel.textContent = state.selectedRepo.name
+  barLabel.classList.add('has-repo')
+
   if (state.loading) {
-    statusContent.className = 'state-loading'
-    statusContent.innerHTML = `
-      <div class="skeleton sk-short" style="margin-top:3px"></div>
-      <div class="skeleton sk-long"></div>
-    `
+    barDot.className = 'status-dot loading'
+    barDot.setAttribute('aria-label', 'Checking')
     return
   }
 
@@ -73,115 +88,145 @@ function renderStatus() {
   if (!s) return
 
   if (s.error) {
-    statusContent.className = 'state-error'
-    statusContent.innerHTML = `
-      <div class="error-dot" role="img" aria-label="Warning"></div>
-      <span class="error-msg">${esc(s.error)}</span>
-    `
+    barDot.className = 'status-dot amber'
+    barDot.setAttribute('aria-label', 'Error')
+    pullBtn.disabled = true
+    return
+  }
+
+  if (s.behind) {
+    barDot.className = 'status-dot red'
+    barDot.setAttribute('aria-label', 'Behind remote')
+    pullBtn.disabled = false
+    pullBtn.classList.remove('is-current')
+    pullBtn.textContent = 'Pull'
+  } else {
+    barDot.className = 'status-dot green'
+    barDot.setAttribute('aria-label', 'Up to date')
+    pullBtn.disabled = false
+    pullBtn.classList.add('is-current')
+    pullBtn.textContent = 'Up to date'
+  }
+}
+
+// ─── Commit panel ──────────────────────────────────────────────────────────
+function renderCommitPanel() {
+  if (!state.selectedRepo) {
+    panelCommit.innerHTML = '<span class="commit-prompt">Select a repository above</span>'
+    return
+  }
+
+  if (state.loading) {
+    panelCommit.innerHTML = `
+      <div class="commit-loading">
+        <div class="skeleton sk-60"></div>
+        <div class="skeleton sk-85"></div>
+        <div class="skeleton sk-40"></div>
+      </div>`
+    return
+  }
+
+  const s = state.status
+  if (!s) return
+
+  if (s.error) {
+    panelCommit.innerHTML = `
+      <div class="commit-error">
+        <div class="status-dot amber" role="img" aria-label="Error"></div>
+        <span class="error-text">${esc(s.error)}</span>
+      </div>`
     return
   }
 
   const { commit, behind } = s
-  const dot   = behind ? 'red'   : 'green'
+  const dot   = behind ? 'red' : 'green'
   const label = behind ? 'Behind remote' : 'Up to date'
-  const checkedStr = state.lastChecked ? reltime(state.lastChecked.toISOString()) : ''
-  const commitStr  = commit.date ? reltime(commit.date) : ''
+  const checked    = state.lastChecked ? reltime(state.lastChecked.toISOString()) : ''
+  const cdate      = commit.date ? reltime(commit.date) : ''
+  const canExpand  = commit.message.length > 24
+  const expanded   = state.msgExpanded
 
-  statusContent.className = 'state-commit'
-  statusContent.innerHTML = `
-    <div class="commit-top">
-      <div class="status-dot ${dot}" role="img" aria-label="${esc(label)}"></div>
-      <span class="status-label ${dot}">${esc(label)}</span>
-    </div>
-    <div class="commit-meta">
-      <span class="commit-author">${esc(commit.author)}</span>
-      <span class="meta-dot">·</span>
-      <span class="commit-sha">${esc(commit.shortSha)}</span>
-      ${commitStr ? `<span class="meta-dot">·</span><span class="commit-date">${esc(commitStr)}</span>` : ''}
-    </div>
-    <div class="commit-message" title="${esc(commit.message)}">${esc(commit.message)}</div>
-    <div class="commit-footer">
-      <span class="checked-time">${checkedStr ? `checked ${esc(checkedStr)}` : ''}</span>
-      ${behind ? `<button class="pull-btn" id="pullBtn">Pull</button>` : ''}
-    </div>
-  `
+  panelCommit.innerHTML = `
+    <div class="commit-info">
+      <div class="commit-status-row">
+        <div class="status-dot ${dot}" role="img" aria-label="${esc(label)}"></div>
+        <span class="status-label ${dot}">${esc(label)}</span>
+      </div>
+      <div class="commit-meta">
+        <span class="commit-author">${esc(commit.author)}</span>
+        <span class="meta-dot">·</span>
+        <span class="commit-sha">${esc(commit.shortSha)}</span>
+        ${cdate ? `<span class="meta-dot">·</span><span class="commit-date">${esc(cdate)}</span>` : ''}
+      </div>
+      <div class="commit-message${expanded ? ' expanded' : ''}" title="${esc(commit.message)}">${esc(commit.message)}</div>
+      ${canExpand ? `<button class="msg-toggle" id="msgToggle">${expanded ? '▲ Show less' : '▼ Show more'}</button>` : ''}
+      ${checked ? `<div class="commit-date" style="margin-top:1px">checked ${esc(checked)}</div>` : ''}
+    </div>`
 
-  if (behind) {
-    el('pullBtn')?.addEventListener('click', () => runPull(commit.sha))
+  if (canExpand) {
+    el('msgToggle').addEventListener('click', async () => {
+      state.msgExpanded = !state.msgExpanded
+      renderCommitPanel()
+      await applyHeight()
+    })
   }
 }
 
-// ─── Status fetch ──────────────────────────────────────────────────────────
-async function fetchStatus() {
-  if (!state.selectedRepo) return
-  state.loading = true
-  renderStatus()
-
-  const result = await w.fetchStatus({
-    fullName: state.selectedRepo.full_name,
-    branch:   state.selectedRepo.default_branch
-  })
-
-  state.status      = result
-  state.loading     = false
-  state.lastChecked = new Date()
-  renderStatus()
-
-  // Collapse to compact bar after a successful status fetch
-  if (!result.error) {
-    await collapseToCompact()
-  }
+// ─── Height helper ─────────────────────────────────────────────────────────
+async function applyHeight() {
+  if (!state.panelOpen) { await w.setHeight(H_BAR); return }
+  let h = state.settingsOpen ? H_WITH_SETTINGS : H_EXPANDED
+  if (state.msgExpanded) h += MSG_EXTRA
+  await w.setHeight(h)
 }
 
-async function runPull(sha) {
-  const fullName = state.selectedRepo.full_name
-  const btn = el('pullBtn')
-  if (btn) { btn.disabled = true; btn.textContent = 'Pulling...' }
-
-  // Resolve local path: use saved path or prompt user to pick folder
-  let localPath = await w.getLocalPath(fullName)
-
-  if (!localPath) {
-    localPath = await w.pickFolder()
-    if (!localPath) {
-      // User cancelled; just mark as acknowledged
-      await w.acknowledge({ fullName, sha })
-      if (state.status) state.status = { ...state.status, behind: false }
-      renderStatus()
-      return
-    }
-    await w.setLocalPath({ fullName, localPath })
-  }
-
-  const result = await w.runPull({ localPath })
-
-  if (result.error) {
-    // Show error briefly in status, then restore
-    statusContent.className = 'state-error'
-    statusContent.innerHTML = `
-      <div class="error-dot" role="img" aria-label="Warning"></div>
-      <span class="error-msg">Pull failed: ${esc(result.error)}</span>
-    `
-    setTimeout(() => renderStatus(), 4000)
-    return
-  }
-
-  // Success: acknowledge and refresh
-  await w.acknowledge({ fullName, sha })
-  await fetchStatus()
+// ─── Panel open/close ──────────────────────────────────────────────────────
+async function openPanel() {
+  if (state.panelOpen) return
+  state.panelOpen = true
+  panel.hidden = false
+  chevronBtn.classList.add('open')
+  await applyHeight()
 }
 
-// ─── Repos ─────────────────────────────────────────────────────────────────
-async function loadRepos() {
-  const result = await w.fetchRepos()
-  if (result.error) {
-    state.status  = { error: result.error }
-    state.loading = false
-    renderStatus()
-    return false
-  }
-  state.repos = result.repos
-  return true
+async function closePanel() {
+  if (!state.panelOpen) return
+  if (state.settingsOpen) await closeSettings()
+  if (state.dropdownOpen) closeDropdown()
+  state.msgExpanded = false
+  state.panelOpen = false
+  panel.hidden = true
+  chevronBtn.classList.remove('open')
+  await applyHeight()
+}
+
+async function togglePanel() {
+  state.panelOpen ? closePanel() : openPanel()
+}
+
+// ─── Settings ──────────────────────────────────────────────────────────────
+async function openSettings() {
+  if (state.settingsOpen) return
+  if (!state.panelOpen) await openPanel()
+  state.settingsOpen = true
+  settingsPanel.hidden = false
+  settingsPanel.setAttribute('aria-hidden', 'false')
+  settingsBtn.classList.add('is-active')
+  await applyHeight()
+  setTimeout(() => tokenInput.focus(), 50)
+}
+
+async function closeSettings() {
+  if (!state.settingsOpen) return
+  state.settingsOpen = false
+  settingsPanel.hidden = true
+  settingsPanel.setAttribute('aria-hidden', 'true')
+  settingsBtn.classList.remove('is-active')
+  await applyHeight()
+}
+
+function toggleSettings() {
+  state.settingsOpen ? closeSettings() : openSettings()
 }
 
 // ─── Dropdown ──────────────────────────────────────────────────────────────
@@ -190,7 +235,6 @@ function renderDropdown() {
     dropdownMenu.innerHTML = '<div class="dropdown-empty">No repositories found</div>'
     return
   }
-
   dropdownMenu.innerHTML = state.repos.map(r => `
     <button
       class="dropdown-option${state.selectedRepo?.full_name === r.full_name ? ' is-selected' : ''}"
@@ -199,7 +243,7 @@ function renderDropdown() {
       data-name="${esc(r.name)}"
       role="option"
       aria-selected="${state.selectedRepo?.full_name === r.full_name}"
-    >${r.private ? '<span class="repo-lock" aria-label="Private">&#x1F512;</span>' : ''}${esc(r.full_name)}</button>
+    >${r.private ? '<span class="repo-lock">&#x1F512;</span>' : ''}${esc(r.full_name)}</button>
   `).join('')
 
   dropdownMenu.querySelectorAll('.dropdown-option').forEach(btn => {
@@ -211,35 +255,25 @@ function renderDropdown() {
   })
 }
 
-async function openDropdown() {
-  if (!state.hasToken) { openSettings(); return }
-  if (!state.repos.length) {
-    const ok = await loadRepos()
-    if (!ok) return
-  }
+function openDropdown() {
+  if (!state.repos.length) return
   state.dropdownOpen = true
   dropdownMenu.hidden = false
   dropdownTrig.setAttribute('aria-expanded', 'true')
-  await w.setHeight(300)
   renderDropdown()
   dropdownMenu.querySelector('.is-selected, .dropdown-option')?.focus()
 }
 
-async function closeDropdown() {
+function closeDropdown() {
   if (!state.dropdownOpen) return
   state.dropdownOpen = false
   dropdownMenu.hidden = true
   dropdownTrig.setAttribute('aria-expanded', 'false')
-  await w.setHeight(state.settingsOpen ? H_SETTINGS : H_COLLAPSED)
 }
-
-const H_COMPACT   = 42
-const H_COLLAPSED = 140
-const H_SETTINGS  = 290
 
 // ─── Repo selection ─────────────────────────────────────────────────────────
 async function selectRepo(repo) {
-  await closeDropdown()
+  closeDropdown()
   state.selectedRepo = repo
   dropdownLabel.textContent = repo.full_name
   dropdownLabel.classList.add('has-value')
@@ -247,75 +281,75 @@ async function selectRepo(repo) {
   await fetchStatus()
 }
 
-// ─── Compact mode ──────────────────────────────────────────────────────────
-function renderCompactInfo() {
-  const s = state.status
-  if (!s || s.error || !s.commit) {
-    compactInfo.innerHTML = '<span class="compact-msg" style="color:var(--text-3)">Checking...</span>'
+// ─── Status fetch ───────────────────────────────────────────────────────────
+async function fetchStatus() {
+  if (!state.selectedRepo) return
+  state.loading = true
+  updateBar()
+  renderCommitPanel()
+
+  const result = await w.fetchStatus({
+    fullName: state.selectedRepo.full_name,
+    branch:   state.selectedRepo.default_branch
+  })
+
+  state.status      = result
+  state.loading     = false
+  state.lastChecked = new Date()
+  updateBar()
+  renderCommitPanel()
+}
+
+// ─── Pull ───────────────────────────────────────────────────────────────────
+async function runPull() {
+  const fullName = state.selectedRepo?.full_name
+  if (!fullName || !state.status || state.status.error) return
+
+  const sha = state.status.commit?.sha
+  if (!sha) return
+
+  pullBtn.disabled    = true
+  pullBtn.textContent = 'Pulling...'
+
+  let localPath = await w.getLocalPath(fullName)
+  if (!localPath) {
+    localPath = await w.pickFolder()
+    if (!localPath) {
+      updateBar()
+      return
+    }
+    await w.setLocalPath({ fullName, localPath })
+  }
+
+  const result = await w.runPull({ localPath })
+
+  if (result.error) {
+    panelCommit.innerHTML = `
+      <div class="commit-error">
+        <div class="status-dot amber" role="img" aria-label="Error"></div>
+        <span class="error-text">Pull failed: ${esc(result.error)}</span>
+      </div>`
+    pullBtn.disabled    = false
+    pullBtn.textContent = 'Retry pull'
+    setTimeout(() => { renderCommitPanel(); updateBar() }, 4000)
     return
   }
 
-  const { commit, behind } = s
-  const dot = behind ? 'red' : 'green'
-  const repoShort = state.selectedRepo?.name || state.selectedRepo?.full_name || ''
-
-  compactInfo.innerHTML = `
-    <div class="status-dot ${dot}" role="img" aria-label="${behind ? 'Behind remote' : 'Up to date'}"></div>
-    <span class="compact-repo">${esc(repoShort)}</span>
-    <span class="compact-sep">·</span>
-    <span class="compact-author">${esc(commit.author)}</span>
-    <span class="compact-sep">·</span>
-    <span class="compact-sha">${esc(commit.shortSha)}</span>
-    <span class="compact-sep">·</span>
-    <span class="compact-msg">${esc(commit.message)}</span>
-  `
+  await w.acknowledge({ fullName, sha })
+  await fetchStatus()
 }
 
-async function collapseToCompact() {
-  if (state.settingsOpen) await closeSettings()
-  if (state.dropdownOpen) await closeDropdown()
-  renderCompactInfo()
-  widget.classList.add('is-compact')
-  expandBtn.hidden = false
-  await w.setHeight(H_COMPACT)
-}
-
-async function expandToFull() {
-  widget.classList.remove('is-compact')
-  expandBtn.hidden = true
-  await w.setHeight(state.settingsOpen ? H_SETTINGS : H_COLLAPSED)
-}
-
-// ─── Settings ──────────────────────────────────────────────────────────────
-async function openSettings() {
-  if (state.settingsOpen) return
-  if (widget.classList.contains('is-compact')) await expandToFull()
-  if (state.dropdownOpen) await closeDropdown()
-  state.settingsOpen = true
-  settingsPanel.hidden = false
-  settingsPanel.setAttribute('aria-hidden', 'false')
-  settingsBtn.classList.add('is-active')
-  await w.setHeight(H_SETTINGS)
-  setTimeout(() => tokenInput.focus(), 60)
-}
-
-async function closeSettings() {
-  if (!state.settingsOpen) return
-  state.settingsOpen = false
-  settingsPanel.hidden = true
-  settingsPanel.setAttribute('aria-hidden', 'true')
-  settingsBtn.classList.remove('is-active')
-
-  // Return to compact if a repo is already selected and has a status
-  if (state.selectedRepo && state.status && !state.status.error) {
-    await collapseToCompact()
-  } else {
-    await w.setHeight(H_COLLAPSED)
+// ─── Repos ──────────────────────────────────────────────────────────────────
+async function loadRepos() {
+  const result = await w.fetchRepos()
+  if (result.error) {
+    state.status = { error: result.error }
+    updateBar()
+    renderCommitPanel()
+    return false
   }
-}
-
-function toggleSettings() {
-  state.settingsOpen ? closeSettings() : openSettings()
+  state.repos = result.repos
+  return true
 }
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
@@ -338,7 +372,7 @@ async function connect() {
   tokenInput.value = ''
   disconnectBtn.hidden = false
   await closeSettings()
-  await openDropdown()
+  openDropdown()
 }
 
 async function disconnect() {
@@ -350,34 +384,22 @@ async function disconnect() {
   dropdownLabel.textContent = 'Select a repository'
   dropdownLabel.classList.remove('has-value')
   disconnectBtn.hidden = true
-  renderStatus()
+  updateBar()
+  renderCommitPanel()
 }
 
 // ─── Auto-refresh ───────────────────────────────────────────────────────────
-w.onTick(async () => {
-  // If compact, update compact info in place without expanding
-  if (widget.classList.contains('is-compact') && state.selectedRepo) {
-    const result = await w.fetchStatus({
-      fullName: state.selectedRepo.full_name,
-      branch:   state.selectedRepo.default_branch
-    })
-    state.status      = result
-    state.lastChecked = new Date()
-    renderStatus()
-    renderCompactInfo()
-  } else {
-    fetchStatus()
-  }
-})
+w.onTick(() => fetchStatus())
 
-// ─── Event wiring ───────────────────────────────────────────────────────────
-expandBtn.addEventListener('click', expandToFull)
-settingsBtn.addEventListener('click', toggleSettings)
-
-closeBtn.addEventListener('click', () => w.hide())
+// ─── Event listeners ────────────────────────────────────────────────────────
+barLeft.addEventListener('click',    togglePanel)
+chevronBtn.addEventListener('click', togglePanel)
+closeBtn.addEventListener('click',   () => w.hide())
 
 dropdownTrig.addEventListener('click', e => {
   e.stopPropagation()
+  if (!state.hasToken) { openSettings(); return }
+  if (!state.repos.length) { loadRepos().then(() => openDropdown()); return }
   state.dropdownOpen ? closeDropdown() : openDropdown()
 })
 
@@ -397,41 +419,27 @@ document.addEventListener('click', e => {
   if (!e.target.closest('#dropdown')) closeDropdown()
 })
 
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && state.dropdownOpen) closeDropdown()
-})
-
-refreshBtn.addEventListener('click', async () => {
+pullBtn.addEventListener('click',     runPull)
+refreshBtn.addEventListener('click',  () => {
   refreshBtn.classList.add('spinning')
   setTimeout(() => refreshBtn.classList.remove('spinning'), 700)
-
-  // If currently compact, refresh in place (don't expand)
-  if (widget.classList.contains('is-compact') && state.selectedRepo) {
-    const result = await w.fetchStatus({
-      fullName: state.selectedRepo.full_name,
-      branch:   state.selectedRepo.default_branch
-    })
-    state.status      = result
-    state.lastChecked = new Date()
-    renderStatus()
-    renderCompactInfo()
-  } else {
-    fetchStatus()
-  }
+  fetchStatus()
 })
-
-connectBtn.addEventListener('click', connect)
-
+settingsBtn.addEventListener('click', toggleSettings)
+connectBtn.addEventListener('click',  connect)
 tokenInput.addEventListener('keydown', e => { if (e.key === 'Enter') connect() })
-
 disconnectBtn.addEventListener('click', disconnect)
-
-refreshSelect.addEventListener('change', e => {
-  w.setRefresh(parseInt(e.target.value, 10))
-})
-
+refreshSelect.addEventListener('change', e => w.setRefresh(parseInt(e.target.value, 10)))
 tokenDocsBtn.addEventListener('click', () => {
   w.openExternal('https://github.com/settings/tokens/new?scopes=repo&description=GitPulse+Widget')
+})
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (state.dropdownOpen) { closeDropdown(); return }
+    if (state.settingsOpen) { closeSettings(); return }
+    if (state.panelOpen)    { closePanel() }
+  }
 })
 
 // ─── Init ───────────────────────────────────────────────────────────────────
@@ -444,8 +452,12 @@ async function init() {
     if (opt) opt.selected = true
   }
 
+  updateBar()
+  renderCommitPanel()
+
   if (!s.hasToken) {
-    openSettings()
+    await openPanel()
+    await openSettings()
     return
   }
 
@@ -460,12 +472,10 @@ async function init() {
       state.selectedRepo = repo
       dropdownLabel.textContent = repo.full_name
       dropdownLabel.classList.add('has-value')
+      updateBar()
       await fetchStatus()
-      return
     }
   }
-
-  renderStatus()
 }
 
 init()
