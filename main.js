@@ -353,7 +353,8 @@ ipcMain.handle('widget:set-local-path', (_, { fullName, localPath }) => {
 
 ipcMain.handle('widget:run-pull', (_, { localPath }) => {
   return new Promise(resolve => {
-    exec('git pull', { cwd: localPath, timeout: 30000 }, (err, stdout, stderr) => {
+    const safePath = localPath.replace(/\\/g, '/')
+    exec(`git -c safe.directory="${safePath}" pull`, { cwd: localPath, timeout: 30000 }, (err, stdout, stderr) => {
       if (err) resolve({ error: (stderr || err.message).trim().slice(0, 120) })
       else     resolve({ ok: true, output: stdout.trim().slice(0, 120) })
     })
