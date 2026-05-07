@@ -13,9 +13,9 @@
 GitPulse sits in the corner of your screen and watches your GitHub repositories. The moment a new commit lands on remote, the status dot turns **red** — so you know to pull before you start working. When you're in sync, it stays **green**. No browser tab, no notifications, no guessing.
 
 ```
-● byron-dashboard          ⠿  ×
+● sales-dashboard          ⠿  ×
 ────────────────────────────────
-gnuphie78/byron-dashboard  ▾
+user123/sales-dashboard  ▾
 
 ● Up to date
 Darrell Walker · 3dc539f · 2h ago
