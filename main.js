@@ -6,11 +6,12 @@ const path  = require('path')
 const fs    = require('fs')
 const https = require('https')
 const { exec } = require('child_process')
+const { deflateSync } = require('zlib')
 
 const W              = 200
 const H_BAR          = 42
-const H_EXPANDED     = 244
-const H_WITH_SETTINGS = 390
+const H_EXPANDED     = 280
+const H_WITH_SETTINGS = 450
 
 let win          = null
 let tray         = null
@@ -113,11 +114,90 @@ async function getLatestCommit(fullName, branch, token) {
   }
 }
 
+// ─── PNG icon generator (no external deps) ─────────────────────────────────
+function buildPng(width, height, pixels) {
+  const tbl = new Uint32Array(256)
+  for (let n = 0; n < 256; n++) {
+    let c = n
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1)
+    tbl[n] = c
+  }
+  const crc = buf => { let c = 0xFFFFFFFF; for (const b of buf) c = tbl[(c ^ b) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0 }
+  const chunk = (type, data) => {
+    const l = Buffer.alloc(4); l.writeUInt32BE(data.length)
+    const t = Buffer.from(type, 'ascii')
+    const cr = Buffer.alloc(4); cr.writeUInt32BE(crc(Buffer.concat([t, data])))
+    return Buffer.concat([l, t, data, cr])
+  }
+  const rows = []
+  for (let y = 0; y < height; y++) {
+    rows.push(0)
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4
+      rows.push(pixels[i], pixels[i+1], pixels[i+2], pixels[i+3])
+    }
+  }
+  const hdr = Buffer.alloc(13)
+  hdr.writeUInt32BE(width, 0); hdr.writeUInt32BE(height, 4)
+  hdr[8] = 8; hdr[9] = 6 // 8-bit RGBA
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk('IHDR', hdr),
+    chunk('IDAT', deflateSync(Buffer.from(rows))),
+    chunk('IEND', Buffer.alloc(0))
+  ])
+}
+
 // ─── Tray ──────────────────────────────────────────────────────────────────
 function makeTrayIcon(status) {
-  const fill = status === 'current' ? '#22c55e' : status === 'behind' ? '#ef4444' : '#94a3b8'
-  const svg  = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><rect width="16" height="16" rx="3" fill="#0f172a"/><circle cx="5" cy="4.5" r="1.5" fill="${fill}"/><circle cx="5" cy="11.5" r="1.5" fill="${fill}"/><circle cx="11" cy="4.5" r="1.5" fill="${fill}"/><line x1="5" y1="6" x2="5" y2="10" stroke="${fill}" stroke-width="1.2" stroke-linecap="round"/><path d="M5 9.5 C6 6.5 8.5 5 11 5" stroke="${fill}" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>`
-  return nativeImage.createFromDataURL('data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64'))
+  const [sr, sg, sb] = status === 'current' ? [34, 197, 94]
+                      : status === 'behind'  ? [239, 68, 68]
+                      :                       [148, 163, 184]
+  const S = 32, rad = 6
+  const px = new Uint8Array(S * S * 4)
+
+  const set = (x, y, r, g, b, a = 255) => {
+    if (x < 0 || x >= S || y < 0 || y >= S) return
+    const i = (y * S + x) * 4; px[i] = r; px[i+1] = g; px[i+2] = b; px[i+3] = a
+  }
+
+  // Dark rounded-rect background
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      let inside = true
+      if      (x < rad    && y < rad)    inside = (x-rad)**2       + (y-rad)**2       < rad*rad
+      else if (x >= S-rad && y < rad)    inside = (x-(S-rad-1))**2 + (y-rad)**2       < rad*rad
+      else if (x < rad    && y >= S-rad) inside = (x-rad)**2       + (y-(S-rad-1))**2 < rad*rad
+      else if (x >= S-rad && y >= S-rad) inside = (x-(S-rad-1))**2 + (y-(S-rad-1))**2 < rad*rad
+      if (inside) set(x, y, 15, 23, 42)
+      else        set(x, y, 0, 0, 0, 0)
+    }
+  }
+
+  // Git-branch icon — nodes + lines in status color
+  const dot = (cx, cy, r) => {
+    for (let dy = -r; dy <= r; dy++)
+      for (let dx = -r; dx <= r; dx++)
+        if (dx*dx + dy*dy <= r*r) set(cx+dx, cy+dy, sr, sg, sb)
+  }
+  const line = (x1, y1, x2, y2) => {
+    const dx = x2-x1, dy = y2-y1
+    const steps = Math.max(Math.abs(dx), Math.abs(dy))
+    for (let i = 0; i <= steps; i++) {
+      const x = Math.round(x1 + dx*i/steps)
+      const y = Math.round(y1 + dy*i/steps)
+      set(x, y, sr, sg, sb); set(x+1, y, sr, sg, sb)
+    }
+  }
+
+  // Nodes:  A=top-left (10,9)  B=bottom-left (10,23)  C=top-right (22,9)
+  line(10, 13, 10, 20)   // trunk  A→B
+  line(10, 18, 22, 10)   // branch A→C
+  dot(10,  9, 3)         // node A
+  dot(10, 23, 3)         // node B
+  dot(22,  9, 3)         // node C
+
+  return nativeImage.createFromBuffer(buildPng(S, S, px), { scaleFactor: 2.0 })
 }
 
 function setTrayStatus(status) {
@@ -141,6 +221,7 @@ function createWindow() {
     }
   })
 
+  win.setIcon(makeTrayIcon('idle'))
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'))
 
   win.on('moved', () => {
@@ -174,6 +255,18 @@ ipcMain.handle('widget:get-settings', () => {
 
 ipcMain.handle('widget:save-token', (_, token) => { writeToken(token.trim()); return { ok: true } })
 ipcMain.handle('widget:clear-token', () => { clearToken(); return { ok: true } })
+
+ipcMain.handle('widget:get-user', async () => {
+  const token = readToken()
+  if (!token) return { error: 'No token' }
+  try {
+    const data = await ghRequest('/user', token)
+    const s = readSettings()
+    s.username = data.login
+    writeSettings(s)
+    return { login: data.login, name: data.name || data.login }
+  } catch (e) { return { error: e.message } }
+})
 
 ipcMain.handle('widget:fetch-repos', async () => {
   const token = readToken()

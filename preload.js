@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('widget', {
   getSettings:   ()    => ipcRenderer.invoke('widget:get-settings'),
   saveToken:     (t)   => ipcRenderer.invoke('widget:save-token', t),
   clearToken:    ()    => ipcRenderer.invoke('widget:clear-token'),
+  getUser:       ()    => ipcRenderer.invoke('widget:get-user'),
   fetchRepos:    ()    => ipcRenderer.invoke('widget:fetch-repos'),
   fetchStatus:   (p)   => ipcRenderer.invoke('widget:fetch-status', p),
   acknowledge:   (p)   => ipcRenderer.invoke('widget:acknowledge', p),
