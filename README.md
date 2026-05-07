@@ -60,7 +60,7 @@ checked just now
 ```bash
 # 1. Clone the repo
 git clone https://github.com/XxDoomsdayxX/GitPulse.git
-cd Github-Desktop-Widget
+cd GitPulse
 
 # 2. Install dependencies
 npm install
