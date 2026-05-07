@@ -85,23 +85,34 @@
       <div class="settings-inner">
 
         <div class="settings-group">
-          <label class="settings-label" for="tokenInput">GitHub Token</label>
-          <input
-            type="password"
-            id="tokenInput"
-            class="text-input"
-            placeholder="ghp_xxxxxxxxxxxx"
-            autocomplete="off"
-            spellcheck="false"
-          >
-          <div class="settings-row-actions">
-            <button class="btn-connect" id="connectBtn">Connect</button>
-            <button class="btn-disconnect" id="disconnectBtn" hidden>Disconnect</button>
+          <!-- Not connected -->
+          <div id="tokenForm">
+            <label class="settings-label" for="tokenInput">GitHub Token</label>
+            <input
+              type="password"
+              id="tokenInput"
+              class="text-input"
+              placeholder="ghp_xxxxxxxxxxxx"
+              autocomplete="off"
+              spellcheck="false"
+            >
+            <div class="settings-row-actions">
+              <button class="btn-connect" id="connectBtn">Connect</button>
+            </div>
+            <p class="settings-hint">
+              <button class="hint-link" id="tokenDocsBtn">Create token</button>
+              &nbsp;&middot;&nbsp;<code>repo</code> scope
+            </p>
           </div>
-          <p class="settings-hint">
-            <button class="hint-link" id="tokenDocsBtn">Create token</button>
-            &nbsp;&middot;&nbsp;<code>repo</code> scope
-          </p>
+          <!-- Connected -->
+          <div id="tokenConnected" hidden>
+            <label class="settings-label">GitHub Account</label>
+            <div class="connected-row">
+              <div class="status-dot green" role="img" aria-label="Connected"></div>
+              <span class="connected-username" id="connectedUsername">Connected</span>
+            </div>
+            <button class="btn-disconnect" id="disconnectBtn">Disconnect</button>
+          </div>
         </div>
 
         <div class="settings-group">

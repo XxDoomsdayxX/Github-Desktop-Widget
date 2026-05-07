@@ -3,14 +3,16 @@
 const w = window.widget
 
 // ─── Heights ───────────────────────────────────────────────────────────────
-const H_BAR           = 42
-const H_EXPANDED      = 244
-const H_WITH_SETTINGS = 390
-const MSG_EXTRA       = 60
+const H_BAR                    = 42
+const H_EXPANDED               = 280
+const H_WITH_SETTINGS          = 450
+const H_WITH_SETTINGS_CONNECTED = 406
+const MSG_EXTRA                = 60
 
 // ─── State ─────────────────────────────────────────────────────────────────
 const state = {
   hasToken:     false,
+  username:     null,
   repos:        [],
   selectedRepo: null,
   status:       null,
@@ -38,12 +40,15 @@ const panelCommit   = el('panelCommit')
 const pullBtn       = el('pullBtn')
 const refreshBtn    = el('refreshBtn')
 const settingsBtn   = el('settingsBtn')
-const settingsPanel = el('settingsPanel')
-const tokenInput    = el('tokenInput')
-const connectBtn    = el('connectBtn')
-const disconnectBtn = el('disconnectBtn')
-const refreshSelect = el('refreshSelect')
-const tokenDocsBtn  = el('tokenDocsBtn')
+const settingsPanel    = el('settingsPanel')
+const tokenForm        = el('tokenForm')
+const tokenConnected   = el('tokenConnected')
+const connectedUsername = el('connectedUsername')
+const tokenInput       = el('tokenInput')
+const connectBtn       = el('connectBtn')
+const disconnectBtn    = el('disconnectBtn')
+const refreshSelect    = el('refreshSelect')
+const tokenDocsBtn     = el('tokenDocsBtn')
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 function esc(str) {
@@ -175,7 +180,12 @@ function renderCommitPanel() {
 // ─── Height helper ─────────────────────────────────────────────────────────
 async function applyHeight() {
   if (!state.panelOpen) { await w.setHeight(H_BAR); return }
-  let h = state.settingsOpen ? H_WITH_SETTINGS : H_EXPANDED
+  let h
+  if (state.settingsOpen) {
+    h = state.hasToken ? H_WITH_SETTINGS_CONNECTED : H_WITH_SETTINGS
+  } else {
+    h = H_EXPANDED
+  }
   if (state.msgExpanded) h += MSG_EXTRA
   await w.setHeight(h)
 }
@@ -353,6 +363,17 @@ async function loadRepos() {
 }
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
+function showConnectedState(username) {
+  connectedUsername.textContent = username || 'Connected'
+  tokenForm.hidden      = true
+  tokenConnected.hidden = false
+}
+
+function showDisconnectedState() {
+  tokenForm.hidden      = false
+  tokenConnected.hidden = true
+}
+
 async function connect() {
   const token = tokenInput.value.trim()
   if (!token) { tokenInput.focus(); return }
@@ -370,7 +391,11 @@ async function connect() {
 
   state.hasToken = true
   tokenInput.value = ''
-  disconnectBtn.hidden = false
+
+  const user = await w.getUser()
+  state.username = user.login || null
+  showConnectedState(state.username)
+
   await closeSettings()
   openDropdown()
 }
@@ -378,12 +403,13 @@ async function connect() {
 async function disconnect() {
   await w.clearToken()
   state.hasToken     = false
+  state.username     = null
   state.repos        = []
   state.selectedRepo = null
   state.status       = null
   dropdownLabel.textContent = 'Select a repository'
   dropdownLabel.classList.remove('has-value')
-  disconnectBtn.hidden = true
+  showDisconnectedState()
   updateBar()
   renderCommitPanel()
 }
@@ -456,12 +482,14 @@ async function init() {
   renderCommitPanel()
 
   if (!s.hasToken) {
+    showDisconnectedState()
     await openPanel()
     await openSettings()
     return
   }
 
-  disconnectBtn.hidden = false
+  state.username = s.username || null
+  showConnectedState(state.username)
 
   const ok = await loadRepos()
   if (!ok) return
