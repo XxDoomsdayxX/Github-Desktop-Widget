@@ -1,0 +1,13 @@
+{
+  "name": "github-desktop-widget",
+  "productName": "GitPulse",
+  "version": "1.0.0",
+  "description": "Floating desktop widget for monitoring GitHub repository sync status.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^28.3.3"
+  }
+}
