@@ -5,6 +5,7 @@
 ![Platform](https://img.shields.io/badge/platform-Windows-blue?style=flat-square)
 ![Electron](https://img.shields.io/badge/electron-28-47848F?style=flat-square&logo=electron)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
+![winget](https://img.shields.io/winget/v/XxDoomsdayxX.GitPulse?style=flat-square&label=winget&color=blue)
 
 ---
 
