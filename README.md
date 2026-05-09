@@ -46,16 +46,32 @@ checked just now
 
 ## Installation
 
-### Option 1 — Installer (recommended)
+### Option 1 — winget (recommended)
 
-1. Download **`GitPulse Setup 1.0.0.exe`** from the [Releases](https://github.com/XxDoomsdayxX/GitPulse/releases) page
+Install directly from the Windows Package Manager — no browser, no download page:
+
+```cmd
+winget install gitpulse
+```
+
+GitPulse will download, install silently, and appear in your Start Menu and system tray. To update later:
+
+```cmd
+winget upgrade gitpulse
+```
+
+> Requires Windows 10 1709 or later. winget ships by default on Windows 11 and is available via the [App Installer](https://apps.microsoft.com/detail/9nblggh4nns1) on Windows 10.
+
+### Option 2 — Installer
+
+1. Download **`GitPulse Setup 1.0.1.exe`** from the [Releases](https://github.com/XxDoomsdayxX/GitPulse/releases) page
 2. Double-click the installer — no admin password needed
 3. GitPulse installs silently and launches automatically
 4. A shortcut is added to your Desktop and Start Menu
 
 > Installs to `%LOCALAPPDATA%\Programs\gitpulse\` — no system-wide changes.
 
-### Option 2 — Run from source
+### Option 3 — Run from source
 
 ```bash
 # 1. Clone the repo
